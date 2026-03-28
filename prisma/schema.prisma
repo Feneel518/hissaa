@@ -1,0 +1,569 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+//* ENUMS
+////////////////////////
+////////////////////////
+
+enum GroupType {
+  PERSONAL
+  HOME
+  TRIP
+  COUPLE
+  FRIENDS
+  OFFICE
+  OTHER
+}
+
+enum GroupMemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum GroupMemberStatus {
+  ACTIVE
+  LEFT
+  REMOVED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  CANCELLED
+}
+
+enum ExpenseStatus {
+  ACTIVE
+  VOID
+  DELETED
+}
+
+enum SplitMethod {
+  EQUAL
+  EXACT
+  PERCENTAGE
+  SHARES
+}
+
+enum SettlementStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum SettlementMethod {
+  MANUAL
+  CASH
+  UPI
+  BANK_TRANSFER
+  CARD
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  RAZORPAY
+  STRIPE
+  CASHFREE
+  MANUAL
+  OTHER
+}
+
+enum RecurringFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+  CUSTOM
+}
+
+enum ActivityType {
+  GROUP_CREATED
+  GROUP_UPDATED
+  MEMBER_INVITED
+  MEMBER_JOINED
+  MEMBER_LEFT
+  MEMBER_REMOVED
+  MEMBER_ROLE_UPDATED
+
+  EXPENSE_CREATED
+  EXPENSE_UPDATED
+  EXPENSE_VOIDED
+  EXPENSE_DELETED
+
+  SETTLEMENT_CREATED
+  SETTLEMENT_COMPLETED
+  SETTLEMENT_CANCELLED
+  SETTLEMENT_FAILED
+
+  PAYMENT_LINK_CREATED
+  PAYMENT_UPDATED
+
+  RECURRING_EXPENSE_CREATED
+  RECURRING_EXPENSE_UPDATED
+  RECURRING_EXPENSE_DISABLED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  email           String  @unique
+  emailVerified   Boolean @default(false)
+  name            String?
+  image           String?
+  phone           String?
+  defaultCurrency String  @default("INR")
+  isActive        Boolean @default(true)
+
+  accounts Account[]
+  sessions Session[]
+
+  ownedGroups        Group[]            @relation("GroupOwner")
+  memberships        GroupMember[]
+  sentInvites        GroupInvitation[]  @relation("InvitationInvitedBy")
+  createdExpenses    Expense[]          @relation("ExpenseCreatedBy")
+  createdSettlements Settlement[]       @relation("SettlementCreatedBy")
+  activities         ActivityLog[]      @relation("ActivityActor")
+  recurringExpenses  RecurringExpense[] @relation("RecurringExpenseCreatedBy")
+  createdJoinLinks   GroupJoinLink[]    @relation("GroupJoinLinkCreatedBy")
+
+  @@index([email])
+  @@index([phone])
+  @@map("users")
+}
+
+model Account {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Verification {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  identifier String
+  value      String   @unique
+  expiresAt  DateTime
+
+  @@index([identifier])
+  @@map("verifications")
+}
+
+model Group {
+  id           String    @id @default(cuid())
+  name         String
+  slug         String?   @unique
+  description  String?
+  type         GroupType @default(OTHER)
+  baseCurrency String    @default("INR")
+  ownerId      String
+  isArchived   Boolean   @default(false)
+  isPersonal   Boolean   @default(false)
+
+  personalOwnerId  String?                @unique
+  owner            User                   @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  members          GroupMember[]
+  invitations      GroupInvitation[]
+  joinLinks        GroupJoinLink[]
+  categories       ExpenseCategory[]
+  expenses         Expense[]
+  settlements      Settlement[]
+  recurringRules   RecurringExpense[]
+  activities       ActivityLog[]
+  attachments      Attachment[]
+  balanceSnapshots GroupBalanceSnapshot[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+  @@index([isArchived])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model GroupMember {
+  id       String            @id @default(cuid())
+  groupId  String
+  userId   String
+  role     GroupMemberRole   @default(MEMBER)
+  status   GroupMemberStatus @default(ACTIVE)
+  joinedAt DateTime          @default(now())
+  leftAt   DateTime?
+  nickname String?
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  expensePaidRows     ExpensePayer[]
+  expenseShareRows    ExpenseParticipant[]
+  outgoingSettlements Settlement[]           @relation("SettlementFromMember")
+  incomingSettlements Settlement[]           @relation("SettlementToMember")
+  balanceSnapshots    GroupBalanceSnapshot[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([groupId, userId])
+  @@index([groupId, status])
+  @@index([userId, status])
+  @@index([groupId, role])
+  @@index([groupId, createdAt])
+}
+
+model GroupInvitation {
+  id          String           @id @default(cuid())
+  groupId     String
+  invitedById String
+  email       String
+  role        GroupMemberRole  @default(MEMBER)
+  status      InvitationStatus @default(PENDING)
+  token       String           @unique
+  expiresAt   DateTime
+  respondedAt DateTime?
+
+  group     Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  invitedBy User  @relation("InvitationInvitedBy", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([groupId, status])
+  @@index([email, status])
+  @@index([expiresAt])
+  @@index([invitedById])
+}
+
+model GroupJoinLink {
+  id          String    @id @default(cuid())
+  groupId     String
+  token       String    @unique
+  isActive    Boolean   @default(true)
+  expiresAt   DateTime?
+  maxUses     Int?
+  usedCount   Int       @default(0)
+  createdById String
+
+  group     Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdBy User  @relation("GroupJoinLinkCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([groupId, isActive])
+  @@index([expiresAt])
+  @@index([createdById])
+}
+
+model ExpenseCategory {
+  id         String  @id @default(cuid())
+  groupId    String
+  name       String
+  color      String?
+  icon       String?
+  isDefault  Boolean @default(false)
+  isArchived Boolean @default(false)
+
+  group    Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  expenses Expense[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([groupId, name])
+  @@index([groupId, isArchived])
+}
+
+model Expense {
+  id          String  @id @default(cuid())
+  groupId     String
+  categoryId  String?
+  createdById String
+
+  title       String
+  description String?
+  notes       String?
+
+  totalAmount Decimal       @db.Decimal(18, 2)
+  currency    String        @default("INR")
+  splitMethod SplitMethod
+  status      ExpenseStatus @default(ACTIVE)
+
+  expenseDate DateTime
+  receiptUrl  String?
+  receiptName String?
+
+  isRecurringInstance Boolean @default(false)
+  recurringExpenseId  String?
+
+  version Int @default(1)
+
+  group     Group            @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  category  ExpenseCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  createdBy User             @relation("ExpenseCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  payers        ExpensePayer[]
+  participants  ExpenseParticipant[]
+  attachments   Attachment[]
+  recurringRule RecurringExpense?    @relation(fields: [recurringExpenseId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([groupId, expenseDate])
+  @@index([groupId, status])
+  @@index([groupId, createdAt])
+  @@index([createdById])
+  @@index([categoryId])
+  @@index([recurringExpenseId])
+}
+
+model ExpensePayer {
+  id            String  @id @default(cuid())
+  expenseId     String
+  groupMemberId String
+  amountPaid    Decimal @db.Decimal(18, 2)
+
+  expense     Expense     @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  groupMember GroupMember @relation(fields: [groupMemberId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+
+  @@unique([expenseId, groupMemberId])
+  @@index([groupMemberId])
+  @@index([expenseId])
+}
+
+model ExpenseParticipant {
+  id            String @id @default(cuid())
+  expenseId     String
+  groupMemberId String
+
+  shareAmount Decimal  @db.Decimal(18, 2)
+  percentage  Decimal? @db.Decimal(8, 4)
+  shares      Int?
+
+  expense     Expense     @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  groupMember GroupMember @relation(fields: [groupMemberId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+
+  @@unique([expenseId, groupMemberId])
+  @@index([groupMemberId])
+  @@index([expenseId])
+}
+
+model Settlement {
+  id           String @id @default(cuid())
+  groupId      String
+  fromMemberId String
+  toMemberId   String
+  createdById  String
+
+  amount   Decimal          @db.Decimal(18, 2)
+  currency String           @default("INR")
+  method   SettlementMethod @default(MANUAL)
+  status   SettlementStatus @default(PENDING)
+
+  note      String?
+  settledAt DateTime?
+  proofUrl  String?
+  proofName String?
+
+  payment Payment?
+
+  group      Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  fromMember GroupMember @relation("SettlementFromMember", fields: [fromMemberId], references: [id], onDelete: Restrict)
+  toMember   GroupMember @relation("SettlementToMember", fields: [toMemberId], references: [id], onDelete: Restrict)
+  createdBy  User        @relation("SettlementCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  attachments Attachment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([groupId, status])
+  @@index([groupId, createdAt])
+  @@index([fromMemberId])
+  @@index([toMemberId])
+  @@index([createdById])
+}
+
+model Payment {
+  id           String @id @default(cuid())
+  settlementId String @unique
+
+  provider    PaymentProvider
+  providerRef String?
+  status      PaymentStatus   @default(PENDING)
+
+  amount   Decimal @db.Decimal(18, 2)
+  currency String  @default("INR")
+
+  paymentLink  String?
+  qrCodeUrl    String?
+  metadataJson Json?
+
+  initiatedAt DateTime?
+  completedAt DateTime?
+
+  settlement Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([provider, providerRef])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model RecurringExpense {
+  id          String @id @default(cuid())
+  groupId     String
+  createdById String
+
+  title       String
+  description String?
+  totalAmount Decimal     @db.Decimal(18, 2)
+  currency    String      @default("INR")
+  splitMethod SplitMethod
+
+  frequency RecurringFrequency
+  interval  Int                @default(1)
+
+  startsOn  DateTime
+  endsOn    DateTime?
+  nextRunAt DateTime?
+  lastRunAt DateTime?
+
+  isActive Boolean @default(true)
+
+  group           Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  templateCreator User  @relation("RecurringExpenseCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  expenses Expense[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([groupId, isActive])
+  @@index([nextRunAt])
+  @@index([createdById])
+}
+
+model Attachment {
+  id           String  @id @default(cuid())
+  groupId      String
+  expenseId    String?
+  settlementId String?
+
+  fileName String
+  fileUrl  String
+  mimeType String?
+  fileSize Int?
+
+  group      Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  expense    Expense?    @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  settlement Settlement? @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([groupId])
+  @@index([expenseId])
+  @@index([settlementId])
+}
+
+model ActivityLog {
+  id           String       @id @default(cuid())
+  groupId      String
+  actorId      String?
+  type         ActivityType
+  entityType   String
+  entityId     String
+  message      String?
+  metadataJson Json?
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  actor User? @relation("ActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([groupId, createdAt])
+  @@index([entityType, entityId])
+  @@index([actorId])
+}
+
+model GroupBalanceSnapshot {
+  id            String   @id @default(cuid())
+  groupId       String
+  groupMemberId String
+  balance       Decimal  @db.Decimal(18, 2)
+  asOf          DateTime @default(now())
+
+  group       Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupMember GroupMember @relation(fields: [groupMemberId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, asOf])
+  @@index([groupMemberId, asOf])
+}
