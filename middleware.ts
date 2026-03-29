@@ -23,7 +23,7 @@ export async function middleware(req: NextRequest) {
   }
 
   if (isOnAuthRoute && isLoggedIn) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+    return NextResponse.redirect(new URL("/len-den", req.url));
   }
 
   return NextResponse.next();
