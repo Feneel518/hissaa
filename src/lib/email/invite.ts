@@ -18,7 +18,7 @@ export async function sendGroupInviteEmail(
     });
 
     const inviteLink = `${
-      process.env.NEXT_PUBLIC_APP_URL || "https://hissaa.vercel.app"
+      process.env.NEXT_PUBLIC_APP_URL || "https://www.hissaa.in"
     }/invite/${inviteToken}`;
 
     const htmlContent = `
