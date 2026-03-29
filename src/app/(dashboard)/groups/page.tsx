@@ -1,18 +1,37 @@
-import { requireUser } from "@/lib/checks/auth/RequireUser";
-import { ArrowRight, Plus, Users } from "lucide-react";
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { ArrowRight, Plus, Users, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { getUserGroups } from "@/lib/actions/group.actions";
-import FeatureCard from "@/components/ui/feature-card";
 
-export default async function GroupsPage() {
-  const user = await requireUser();
-  const { groups, success } = await getUserGroups();
+async function fetchGroups() {
+  const res = await fetch("/api/groups");
+  if (!res.ok) throw new Error("Failed to fetch groups");
+  return res.json();
+}
+
+export default function GroupsPage() {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["groups"],
+    queryFn: fetchGroups,
+  });
+
+  const groups = data?.groups || [];
+  const success = data?.success;
+
+  if (isLoading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
+        <div className="px-1">
           <h1 className="text-3xl md:text-5xl font-serif tracking-tight text-foreground">
             Your Groups
           </h1>
@@ -29,7 +48,7 @@ export default async function GroupsPage() {
         </div>
       </div>
 
-      {!success || !groups || groups.length === 0 ? (
+      {!success || groups.length === 0 ? (
         <div className="rounded-[2.5rem] bg-card border shadow-sm p-8 md:p-12 text-center">
           <h3 className="text-xl font-medium text-foreground">No groups yet</h3>
           <p className="text-muted-foreground mt-2">
@@ -54,9 +73,6 @@ export default async function GroupsPage() {
 
                   {/* card body */}
                   <div className="relative z-10 flex h-full flex-col rounded-4xl border border-white/10 bg-background/70 p-6 backdrop-blur-2xl">
-                    {/* top line accent */}
-                    {/* <div className="absolute left-6 top-0 h-[2px] w-16 origin-left rounded-full bg-primary transition-all duration-500 group-hover:w-32" /> */}
-
                     {/* floating corner orb */}
                     <div className="absolute right-5 top-5">
                       <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl transition-all duration-500 group-hover:rotate-6 group-hover:scale-110">
@@ -143,11 +159,6 @@ export default async function GroupsPage() {
                           </div>
                         </div>
                       </div>
-                    </div>
-
-                    {/* animated border beam */}
-                    <div className="pointer-events-none absolute inset-0 rounded-4xl">
-                      <div className="absolute -left-1/3 top-0 h-px w-1/3 bg-linear-to-r from-transparent via-primary to-transparent opacity-0 transition-all duration-700 group-hover:left-full group-hover:opacity-100" />
                     </div>
                   </div>
                 </div>

@@ -4,7 +4,7 @@ export async function sendGroupInviteEmail(
   toEmail: string,
   inviterName: string,
   groupName: string,
-  inviteToken: string
+  inviteToken: string,
 ) {
   try {
     const transporter = nodemailer.createTransport({
@@ -17,7 +17,9 @@ export async function sendGroupInviteEmail(
       },
     });
 
-    const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/invite/${inviteToken}`;
+    const inviteLink = `${
+      process.env.NEXT_PUBLIC_APP_URL || "https://hissaa.vercel.app"
+    }/invite/${inviteToken}`;
 
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-w: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
@@ -58,7 +60,9 @@ export async function sendGroupInviteEmail(
     } else {
       console.log("-----------------------------------------");
       console.log(`[DEV MODE] Simulate sending email to: ${toEmail}`);
-      console.log(`[DEV MODE] Subject: ${inviterName} invited you to join "${groupName}"`);
+      console.log(
+        `[DEV MODE] Subject: ${inviterName} invited you to join "${groupName}"`,
+      );
       console.log(`[DEV MODE] Link: ${inviteLink}`);
       console.log("-----------------------------------------");
     }

@@ -3,6 +3,8 @@ import { Manrope, Orbitron, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/lib/providers/ThemeProvider";
 import DashboardNavbar from "@/components/navbar/DashboardNavbar";
+import MobileNavbar from "@/components/navbar/MobileNavbar";
+import { QueryProvider } from "@/lib/providers/QueryProvider";
 
 const manrope = Manrope({
   variable: "--font-sans",
@@ -24,8 +26,9 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "Your App",
-  description: "Elegant dashboard UI",
+  title: "Hissa",
+  description: "Track shared expenses with elegance",
+  viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover",
 };
 
 export default function RootLayout({
@@ -47,10 +50,15 @@ export default function RootLayout({
           defaultTheme="light"
           enableSystem
           disableTransitionOnChange>
-          <div className="relative min-h-screen">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.06),transparent_35%)]" />
-            <div className="relative font-sans">{children}</div>
-          </div>
+          <QueryProvider>
+            <div className="relative min-h-screen pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.06),transparent_35%)]" />
+              <div className="relative font-sans">
+                {children}
+              </div>
+              <MobileNavbar />
+            </div>
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>
