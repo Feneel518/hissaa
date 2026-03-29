@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/lib/providers/ThemeProvider";
 import DashboardNavbar from "@/components/navbar/DashboardNavbar";
 import MobileNavbar from "@/components/navbar/MobileNavbar";
 import { QueryProvider } from "@/lib/providers/QueryProvider";
+import { CapacitorProvider } from "@/lib/providers/CapacitorProvider";
 
 const manrope = Manrope({
   variable: "--font-sans",
@@ -51,13 +52,15 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange>
           <QueryProvider>
-            <div className="relative min-h-screen pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.06),transparent_35%)]" />
-              <div className="relative font-sans">
-                {children}
+            <CapacitorProvider>
+              <div className="relative min-h-screen pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.06),transparent_35%)]" />
+                <div className="relative font-sans">
+                  {children}
+                </div>
+                <MobileNavbar />
               </div>
-              <MobileNavbar />
-            </div>
+            </CapacitorProvider>
           </QueryProvider>
         </ThemeProvider>
       </body>
