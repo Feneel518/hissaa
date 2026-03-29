@@ -4,13 +4,11 @@ const config: CapacitorConfig = {
   appId: 'com.hissaa.app',
   appName: 'Hissa',
   webDir: 'out',
-  /*
   server: {
     androidScheme: 'https',
-    url: 'http://192.168.0.107:3000',
+    url: 'https://hissaa.in',
     cleartext: true
   }
-  */
 };
 
 export default config;
